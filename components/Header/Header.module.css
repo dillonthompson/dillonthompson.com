@@ -1,0 +1,22 @@
+.image {
+  height: 200px;
+  width: 200px;
+}
+
+.header {
+  display: flex;
+  flex: 1;
+}
+
+.nav {
+  display: flex;
+  flex: 1;
+}
+
+.items {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  justify-content: space-around;
+  list-style: none;
+}
