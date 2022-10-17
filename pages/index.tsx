@@ -1,20 +1,22 @@
 import type { NextPage } from 'next'
 import Head from 'next/head'
-import styles from '@/styles/Home.module.css'
-import { Footer, Header } from '@/components/index'
+import { Layout, HomeSlider } from '@/components/index'
 
 const Home: NextPage = () => {
   return (
-    <div className={styles.container}>
+    <div>
       <Head>
         <title>Dillon Thompson</title>
-        <meta property="og:title" content="My page title" key="title" />
+        <meta property="og:title" content="Dillon Thompson" key="title" />
       </Head>
-      <main>
-        <Header />
-
-        <Footer />
-      </main>
+      <Layout>
+        <HomeSlider />
+        <h1>hello world</h1>
+        <h2>hello world</h2>
+        <h3>hello world</h3>
+        <h4>hello world</h4>
+        <p>hello world</p>
+      </Layout>
     </div>
   )
 }
