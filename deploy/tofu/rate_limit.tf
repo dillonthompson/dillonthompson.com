@@ -22,22 +22,22 @@ resource "cloudflare_ruleset" "rate_limit" {
       expression  = "(starts_with(http.request.uri.path, \"/api/\"))"
 
       ratelimit = {
-        # cf.colo.id + ip.src means the 60/min budget is counted per Cloudflare
-        # data center. Globally a single IP could technically exceed 60/min if
-        # they bounce between colos, but in practice this covers realistic abuse
-        # cases while keeping the rule simple.
+        # cf.colo.id + ip.src means the budget is counted per Cloudflare data
+        # center per source IP. Globally a single IP could technically double
+        # this by bouncing between colos, but in practice this covers realistic
+        # abuse cases while keeping the rule simple.
         characteristics = ["cf.colo.id", "ip.src"]
 
-        # A regular visitor loading the homepage fires ~2-3 /api calls (profile +
-        # experience). 60/min leaves a big margin for refresh-happy users while
-        # still cutting off crawlers and scripted abuse.
-        period              = 60
-        requests_per_period = 60
+        # Free Cloudflare plan restricts `period` to 10 seconds. Pro+ unlocks
+        # longer windows. 10 req / 10s ≈ 60 req/min for steady traffic, and a
+        # visitor loading the homepage only fires 2-3 /api calls, so bursts
+        # from real users stay well under the cap.
+        period              = 10
+        requests_per_period = 10
 
-        # After tripping the limit, block further requests for 60s. Too short and
-        # they just retry; too long and legitimate users get stuck behind an IP
-        # that ran a bad script 10 minutes ago.
-        mitigation_timeout = 60
+        # mitigation_timeout: how long a tripped IP stays blocked. On free plan
+        # this is also capped, so match `period` to stay safely within limits.
+        mitigation_timeout = 10
         requests_to_origin = false
       }
     }

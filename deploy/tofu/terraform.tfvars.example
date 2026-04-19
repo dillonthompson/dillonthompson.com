@@ -4,8 +4,12 @@
 #   Hetzner Cloud console → Security → API Tokens → Generate (Read & Write).
 #
 # cloudflare_api_token:
-#   Cloudflare dashboard → My Profile → API Tokens → Create Token →
-#   "Edit zone DNS" template, limit to the dillonthompson.com zone.
+#   Cloudflare dashboard → My Profile → API Tokens → Create Token → Create Custom Token.
+#   Permissions needed (all required — no template covers all three):
+#     - Zone → DNS → Edit             (for cloudflare_dns_record)
+#     - Zone → Zone WAF → Edit        (for cloudflare_ruleset rate limiting)
+#     - Zone → Zone → Read            (to resolve the zone)
+#   Zone resources: "Include → Specific zone → dillonthompson.com".
 #
 # cloudflare_zone_id:
 #   Cloudflare dashboard → dillonthompson.com → right sidebar → API → Zone ID.

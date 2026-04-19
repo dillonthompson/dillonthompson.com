@@ -46,8 +46,12 @@ $EDITOR terraform.tfvars
 ```
 
 Populate:
-- `hcloud_token` — from Hetzner Cloud console
-- `cloudflare_api_token` + `cloudflare_zone_id` — from Cloudflare dashboard
+- `hcloud_token` — Hetzner Cloud console → Security → API Tokens → Read & Write
+- `cloudflare_api_token` — Cloudflare → My Profile → API Tokens → **Create Custom Token** with these permissions, all scoped to the `dillonthompson.com` zone:
+  - `Zone → DNS → Edit` (DNS records)
+  - `Zone → Zone WAF → Edit` (rate-limit ruleset)
+  - `Zone → Zone → Read` (zone lookup)
+- `cloudflare_zone_id` — right sidebar of the zone's Cloudflare page
 - `ssh_public_key` — your personal `~/.ssh/id_ed25519.pub` contents
 - `deploy_ssh_public_key` — contents of `~/.ssh/dillonthompson-deploy.pub`
 

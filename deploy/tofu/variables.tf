@@ -16,15 +16,21 @@ variable "cloudflare_zone_id" {
 }
 
 variable "server_type" {
-  description = "Hetzner instance type. cx22 = 2 vCPU / 4 GB / 40 GB (~$4.50/mo)"
-  type        = string
-  default     = "cx22"
+  description = <<-EOT
+    Hetzner instance type. Server families are location-bound — check the Hetzner
+    console for what's available where you're deploying.
+      - US (ash, hil): cpx11 (2 vCPU / 2 GB / 40 GB, ~$4.79/mo) — this default
+      - EU (fsn1, nbg1, hel1): cx23 (2 vCPU / 4 GB / 40 GB, ~€3.79/mo)
+    ARM (cax*) is also cheap but our image is linux/amd64 only.
+  EOT
+  type    = string
+  default = "cpx11"
 }
 
 variable "location" {
-  description = "Hetzner datacenter (ash = Ashburn VA, fsn1 = Falkenstein DE, hel1 = Helsinki FI, hil = Hillsboro OR, nbg1 = Nuremberg DE)"
+  description = "Hetzner datacenter. ash = Ashburn VA, hil = Hillsboro OR, fsn1 = Falkenstein DE, nbg1 = Nuremberg DE, hel1 = Helsinki FI. Must match server_type availability."
   type        = string
-  default     = "ash"
+  default     = "hil"
 }
 
 variable "image" {
