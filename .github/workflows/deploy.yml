@@ -1,0 +1,156 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time — if two merges land back-to-back, serialize instead of
+# racing each other through `systemctl restart`. Don't cancel in-flight; the
+# second deploy should still run after the first finishes.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # push to GHCR using GITHUB_TOKEN
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # The short git SHA is the durable tag; `:latest` is a convenience
+          # alias so humans can pull the current prod image without knowing
+          # the SHA. The deploy step ignores both and references by digest.
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions cache keeps Go module downloads, pnpm installs, and
+          # Caddy base layers warm between runs. Rebuilds drop to ~30s once seeded.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # SSH_KNOWN_HOSTS should be the output of `ssh-keyscan <host>` captured
+          # manually once the server exists. Pinning prevents MITM on deploy.
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Write deploy env file locally
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS || 'dillonthompson.com' }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL || 'dj.thompson715@gmail.com' }}
+        run: |
+          # Build the env file locally so every value is substituted here,
+          # safely, instead of wrestling with nested heredocs over SSH.
+          umask 077
+          cat > /tmp/dillonthompson.env <<EOF
+          IMAGE=$IMAGE
+          DATABASE_URL=$DATABASE_URL
+          SITE_ADDRESS=$SITE_ADDRESS
+          LETSENCRYPT_EMAIL=$LETSENCRYPT_EMAIL
+          EOF
+
+      - name: Upload env file and restart service
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          scp /tmp/dillonthompson.env "$SSH_USER@$SSH_HOST":/tmp/dillonthompson.env
+          ssh "$SSH_USER@$SSH_HOST" '
+            set -euo pipefail
+
+            # Snapshot the currently-running env file so we can roll back if the
+            # new image is busted. First deploy has no prior file — thats fine.
+            if [ -f /opt/dillonthompson/.env ]; then
+              sudo install -m 600 -o root -g root /opt/dillonthompson/.env /opt/dillonthompson/.env.prev
+            fi
+
+            # Install the new env file as root-owned, mode 600.
+            sudo install -m 600 -o root -g root /tmp/dillonthompson.env /opt/dillonthompson/.env
+            rm -f /tmp/dillonthompson.env
+
+            # Pre-pull the new image so the restart window is as short as possible.
+            IMAGE=$(grep ^IMAGE= /opt/dillonthompson/.env | cut -d= -f2-)
+            sudo docker pull "$IMAGE"
+
+            # systemd restart tears down the existing container and starts a new
+            # one — expect ~2-5 seconds of 502s since Caddy lives in the same
+            # container and dies alongside the API. Accept it for this scale.
+            sudo systemctl restart dillonthompson.service
+
+            # Give s6 + Caddy a beat to come up (cert fetch on first run can take
+            # longer), then hit the health check via the real site address.
+            SITE_ADDRESS=$(grep ^SITE_ADDRESS= /opt/dillonthompson/.env | cut -d= -f2-)
+            sleep 6
+
+            # Resolve the hostname to 127.0.0.1 so the check works even before
+            # DNS propagates publicly. TLS still validates against the real cert
+            # because the SNI and Host header are set correctly.
+            if curl -fsS --max-time 10 --resolve "$SITE_ADDRESS:443:127.0.0.1" "https://$SITE_ADDRESS/api/v1/health" > /dev/null; then
+              echo "Health check passed."
+              sudo rm -f /opt/dillonthompson/.env.prev
+              exit 0
+            fi
+
+            echo "Health check failed — rolling back to previous image."
+            sudo systemctl status dillonthompson.service --no-pager | tail -40 || true
+
+            if [ -f /opt/dillonthompson/.env.prev ]; then
+              sudo install -m 600 -o root -g root /opt/dillonthompson/.env.prev /opt/dillonthompson/.env
+              sudo systemctl restart dillonthompson.service
+              echo "Rolled back. Deploy failed."
+            else
+              echo "No previous env file — this looks like the first deploy. Leaving service in its current state for manual intervention."
+            fi
+
+            exit 1
+          '
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Deploy summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- SHA tag: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Triggered by: ${{ github.actor }} via ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY

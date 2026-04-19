@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="12" fill="#0a0a0a"/>
+  <text
+    x="32"
+    y="45"
+    text-anchor="middle"
+    font-family="'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace"
+    font-size="34"
+    font-weight="700"
+    fill="#fafafa"
+    letter-spacing="-1"
+  >dt<tspan fill="#22c55e">.</tspan></text>
+</svg>

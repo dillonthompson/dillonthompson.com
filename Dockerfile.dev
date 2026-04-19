@@ -1,0 +1,15 @@
+FROM golang:1.26-alpine
+
+RUN go install github.com/air-verse/air@latest && \
+    go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+EXPOSE 8080
+
+CMD ["air", "-c", ".air.toml"]

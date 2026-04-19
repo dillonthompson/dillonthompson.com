@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0a0a" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#0a0a0a" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0a0a0a"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect width="1200" height="630" fill="url(#fade)"/>
+
+  <!-- dt. logo, top-left -->
+  <text
+    x="64" y="110"
+    font-family="'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace"
+    font-size="44"
+    font-weight="700"
+    fill="#fafafa"
+    letter-spacing="-1"
+  >dt<tspan fill="#22c55e">.</tspan></text>
+
+  <!-- Name (hero) -->
+  <text
+    x="64" y="330"
+    font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', Arial, sans-serif"
+    font-size="96"
+    font-weight="700"
+    fill="#fafafa"
+    letter-spacing="-3"
+  >Dillon Thompson</text>
+
+  <!-- Title -->
+  <text
+    x="64" y="390"
+    font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', Arial, sans-serif"
+    font-size="32"
+    font-weight="400"
+    fill="#a1a1aa"
+    letter-spacing="-0.5"
+  >Senior Full Stack Engineer &amp; Technical Consultant</text>
+
+  <!-- Tagline (accent-colored strip) -->
+  <rect x="64" y="440" width="6" height="46" fill="#22c55e"/>
+  <text
+    x="88" y="476"
+    font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', Arial, sans-serif"
+    font-size="28"
+    font-weight="400"
+    fill="#e4e4e7"
+  >I build secure, high-scale systems and take products from 0 to 1.</text>
+
+  <!-- Footer URL -->
+  <text
+    x="64" y="580"
+    font-family="'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace"
+    font-size="22"
+    font-weight="500"
+    fill="#71717a"
+    letter-spacing="-0.5"
+  >dillonthompson.com</text>
+
+  <!-- Decorative green dot (live indicator callback) -->
+  <circle cx="1130" cy="80" r="10" fill="#22c55e"/>
+  <circle cx="1130" cy="80" r="10" fill="#22c55e" opacity="0.3">
+    <animate attributeName="r" from="10" to="32" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" from="0.3" to="0" dur="2s" repeatCount="indefinite"/>
+  </circle>
+</svg>

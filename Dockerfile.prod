@@ -1,0 +1,61 @@
+# Single production image. Caddy + the Go API + the built React frontend, all
+# supervised by s6-overlay. One digest to deploy, one container to run.
+
+# --- Stage 1: build the Go API -----------------------------------------------
+FROM golang:1.26-alpine AS api-builder
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# CGO=0 makes the binary fully static so it runs on the slim Caddy image.
+# -ldflags "-s -w" strips debug info to shave ~25% off binary size.
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/api ./cmd/api
+
+
+# --- Stage 2: build the React frontend ---------------------------------------
+FROM node:24-alpine AS frontend-builder
+
+RUN corepack enable pnpm
+
+WORKDIR /build
+
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY frontend/ ./
+RUN pnpm build
+
+
+# --- Stage 3: runtime --------------------------------------------------------
+# Start from the official Caddy alpine image so we inherit Caddy + a modern TLS
+# stack. Add s6-overlay to supervise both Caddy and the API as long-running
+# services.
+FROM caddy:2-alpine
+
+ARG S6_OVERLAY_VERSION=3.2.0.2
+
+RUN apk add --no-cache ca-certificates curl xz \
+	&& curl -sL "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" | tar -C / -Jxpf - \
+	&& curl -sL "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-x86_64.tar.xz" | tar -C / -Jxpf - \
+	&& apk del curl xz
+
+# s6 service definitions — see deploy/s6-services/ for the run scripts.
+COPY deploy/s6-services/ /etc/s6-overlay/s6-rc.d/
+
+# App binaries and static assets.
+COPY --from=api-builder /out/api /usr/local/bin/api
+COPY --from=frontend-builder /build/dist /srv
+
+# Caddy config — see deploy/Caddyfile.prod. SITE_ADDRESS defaults to the real
+# hostname; override it with `-e SITE_ADDRESS=:80` to disable auto-HTTPS for
+# local testing.
+COPY deploy/Caddyfile.prod /etc/caddy/Caddyfile
+
+# s6 needs PID 1 to handle signals correctly.
+ENTRYPOINT ["/init"]
+
+EXPOSE 80 443

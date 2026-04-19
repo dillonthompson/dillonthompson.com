@@ -1,0 +1,26 @@
+# Multi-stage build: compile the frontend with pnpm, then copy the static
+# output into a minimal Caddy image. Result is a single container that serves
+# the site and reverse-proxies /api to the api service.
+
+FROM node:24-alpine AS frontend-builder
+
+RUN corepack enable pnpm
+
+WORKDIR /build
+
+# Install deps first so subsequent rebuilds can reuse this layer unless the
+# lockfile changes.
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY frontend/ ./
+RUN pnpm build
+
+FROM caddy:2-alpine
+
+COPY deploy/Caddyfile.docker /etc/caddy/Caddyfile
+COPY --from=frontend-builder /build/dist /srv
+
+EXPOSE 80
+
+# Default Caddy entrypoint picks up /etc/caddy/Caddyfile automatically.

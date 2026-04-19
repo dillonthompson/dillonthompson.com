@@ -1,0 +1,3 @@
+#!/command/with-contenv sh
+# with-contenv so SITE_ADDRESS + LETSENCRYPT_EMAIL substitutions resolve.
+exec /usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile

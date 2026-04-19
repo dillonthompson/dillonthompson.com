@@ -1,0 +1,4 @@
+#!/command/with-contenv sh
+# with-contenv loads the container environment (DATABASE_URL, etc.) so our
+# service sees the env vars we pass with -e / EnvironmentFile.
+exec /usr/local/bin/api

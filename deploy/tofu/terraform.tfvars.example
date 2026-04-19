@@ -1,0 +1,31 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+#
+# hcloud_token:
+#   Hetzner Cloud console → Security → API Tokens → Generate (Read & Write).
+#
+# cloudflare_api_token:
+#   Cloudflare dashboard → My Profile → API Tokens → Create Token →
+#   "Edit zone DNS" template, limit to the dillonthompson.com zone.
+#
+# cloudflare_zone_id:
+#   Cloudflare dashboard → dillonthompson.com → right sidebar → API → Zone ID.
+#
+# ssh_public_key:
+#   Contents of ~/.ssh/id_ed25519.pub (or whichever key you use for servers).
+#
+# deploy_ssh_public_key:
+#   Generate a fresh keypair purely for CI:
+#     ssh-keygen -t ed25519 -C "dillonthompson-deploy" -f ~/.ssh/dillonthompson-deploy -N ''
+#   Paste the .pub here. Add the private key (`cat ~/.ssh/dillonthompson-deploy`)
+#   to GitHub → repo → Settings → Secrets → SSH_PRIVATE_KEY.
+
+hcloud_token          = "REDACTED"
+cloudflare_api_token  = "REDACTED"
+cloudflare_zone_id    = "REDACTED"
+ssh_public_key        = "ssh-ed25519 AAAA... dillon@laptop"
+deploy_ssh_public_key = "ssh-ed25519 AAAA... dillonthompson-deploy"
+
+# Optional overrides:
+# server_type       = "cx22"
+# location          = "ash"
+# cloudflare_proxy  = false  # flip to true after HTTPS cert issues successfully

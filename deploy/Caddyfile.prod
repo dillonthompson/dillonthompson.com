@@ -1,0 +1,59 @@
+# Caddyfile baked into the single production image. The Go API runs alongside
+# Caddy in the same container (supervised by s6), so the upstream is loopback.
+# Site address comes from the SITE_ADDRESS env var so the same image can be
+# tested locally with SITE_ADDRESS=:80 and still run in production with
+# SITE_ADDRESS=dillonthompson.com (which triggers auto-HTTPS).
+
+{
+	admin localhost:2019
+	email {$LETSENCRYPT_EMAIL:dj.thompson715@gmail.com}
+}
+
+{$SITE_ADDRESS:dillonthompson.com} {
+	encode zstd gzip
+
+	header {
+		# Only set HSTS when we're serving a real domain with HTTPS. The
+		# envsubst in the site address is enough of a signal — if someone
+		# overrides SITE_ADDRESS to :80 for local testing, these headers
+		# still render but HSTS is a noop over plain HTTP.
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'"
+		-Server
+	}
+
+	handle_path /api/* {
+		rewrite * /api{uri}
+		# Note: Caddy and the Go API share a container, so `systemctl restart`
+		# tears both down — expect ~2-5s of 502s during deploys. The retry
+		# knobs below are only useful for transient in-container hiccups (panic
+		# recovered via s6 restart, a slow request, etc.), not deploy downtime.
+		reverse_proxy localhost:8080 {
+			header_up X-Real-IP {remote_host}
+			lb_try_duration 10s
+			lb_try_interval 250ms
+		}
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+
+		@html path /index.html
+		header @html Cache-Control "no-cache, must-revalidate"
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

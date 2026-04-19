@@ -1,0 +1,35 @@
+# Environment — commit .env.example (template) but never the real secrets.
+.env
+.env.local
+.env.*.local
+
+# Go
+/api
+/tmp
+
+# Dependencies
+/vendor
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (frontend)
+node_modules/
+dist/
+
+# OpenTofu / Terraform — state files may contain secrets (API tokens, IPs).
+# .tfvars files hold the secrets we feed into the config. Never commit either.
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example

@@ -1,0 +1,57 @@
+# /etc/systemd/system/dillonthompson.service
+#
+# systemd wrapper around `docker run`. The unit reads /opt/dillonthompson/.env
+# for the image reference (pinned by digest) and the app's runtime env (DATABASE_URL,
+# SITE_ADDRESS, LETSENCRYPT_EMAIL). The deploy workflow rewrites that file and
+# calls `systemctl restart` to swap containers.
+#
+# This file is owned by the repo; install it into /etc/systemd/system/ via
+# cloud-init on first boot.
+
+[Unit]
+Description=dillonthompson.com (Caddy + Go API, single container)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+# Read IMAGE, DATABASE_URL, SITE_ADDRESS, LETSENCRYPT_EMAIL from the env file.
+# Root-owned, mode 600; GitHub Actions rewrites this on every deploy.
+EnvironmentFile=/opt/dillonthompson/.env
+
+# Restart=always + small backoff so a transient crash self-heals. StartLimitInterval
+# bounds how many times systemd will retry before giving up for an hour.
+Restart=always
+RestartSec=3s
+StartLimitIntervalSec=60s
+StartLimitBurst=5
+
+# Keep old containers out of the way before starting a new one. ExecStartPre has
+# a leading '-' so failure (container didn't exist) doesn't fail the unit.
+ExecStartPre=-/usr/bin/docker rm -f dillonthompson
+
+# Run the container in the foreground so systemd supervises it directly.
+# --init is unnecessary because s6-overlay handles PID 1 inside the container.
+# Named volumes for Caddy's ACME storage so Let's Encrypt certs survive restarts
+# (critical — Let's Encrypt rate-limits fresh cert requests).
+ExecStart=/usr/bin/docker run --rm --name dillonthompson \
+  --log-driver=journald \
+  --log-opt tag=dillonthompson \
+  -p 80:80 \
+  -p 443:443 \
+  -p 443:443/udp \
+  -e DATABASE_URL \
+  -e SITE_ADDRESS \
+  -e LETSENCRYPT_EMAIL \
+  -v caddy_data:/data \
+  -v caddy_config:/config \
+  ${IMAGE}
+
+ExecStop=/usr/bin/docker stop --time=10 dillonthompson
+
+# Give the container time to drain connections on shutdown. systemd default is
+# 90s; 30s is plenty for a site of this size and keeps `restart` snappy.
+TimeoutStopSec=30s
+
+[Install]
+WantedBy=multi-user.target
