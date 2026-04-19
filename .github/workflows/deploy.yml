@@ -94,13 +94,19 @@ jobs:
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS || 'dillonthompson.com' }}
         run: |
           scp /tmp/dillonthompson.env "$SSH_USER@$SSH_HOST":/tmp/dillonthompson.env
-          ssh "$SSH_USER@$SSH_HOST" '
+          # Pass IMAGE + SITE_ADDRESS to the remote shell via env prefix so the
+          # deploy script can use them without having to read them back out of
+          # /opt/dillonthompson/.env — that file is root-owned mode 600, so the
+          # deploy user can't read it directly (on purpose).
+          ssh "$SSH_USER@$SSH_HOST" "IMAGE='$IMAGE' SITE_ADDRESS='$SITE_ADDRESS' bash -s" <<'REMOTE'
             set -euo pipefail
 
             # Snapshot the currently-running env file so we can roll back if the
-            # new image is busted. First deploy has no prior file — thats fine.
+            # new image is busted. First deploy has no prior file — that's fine.
             if [ -f /opt/dillonthompson/.env ]; then
               sudo install -m 600 -o root -g root /opt/dillonthompson/.env /opt/dillonthompson/.env.prev
             fi
@@ -110,7 +116,6 @@ jobs:
             rm -f /tmp/dillonthompson.env
 
             # Pre-pull the new image so the restart window is as short as possible.
-            IMAGE=$(grep ^IMAGE= /opt/dillonthompson/.env | cut -d= -f2-)
             sudo docker pull "$IMAGE"
 
             # systemd restart tears down the existing container and starts a new
@@ -120,7 +125,6 @@ jobs:
 
             # Give s6 + Caddy a beat to come up (cert fetch on first run can take
             # longer), then hit the health check via the real site address.
-            SITE_ADDRESS=$(grep ^SITE_ADDRESS= /opt/dillonthompson/.env | cut -d= -f2-)
             sleep 6
 
             # Resolve the hostname to 127.0.0.1 so the check works even before
@@ -144,7 +148,7 @@ jobs:
             fi
 
             exit 1
-          '
+          REMOTE
 
       - name: Summary
         if: always()
