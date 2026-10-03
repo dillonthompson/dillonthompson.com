@@ -43,7 +43,10 @@ function pickOne<T>(pool: T[]): T {
 }
 
 function buildSteps(): Step[] {
-  const durations = [1700, 1900, 1500, 2000]
+  // Per-step spinner durations. Total intro time = sum(durations) + 4*INTER_STEP_DELAY + FINAL_PAUSE.
+  // Tuned to land at exactly 8.2s: 7650 + 4*75 + 250 = 8200ms. No step exceeds 2050ms;
+  // steps 1 and 3 are leveled at 1800ms so the rhythm feels more even.
+  const durations = [1800, 2000, 1800, 2050]
   return [step1Pool, step2Pool, step3Pool, step4Pool].map((pool, i) => ({
     ...pickOne(pool),
     duration: durations[i],
@@ -75,14 +78,22 @@ export function DeployIntro({ onComplete }: DeployIntroProps) {
   const [elapsed, setElapsed] = useState(0)
   const [exiting, setExiting] = useState(false)
 
-  // Build timer
+  // Build timer. Keeps ticking until the button appears so the displayed
+  // duration matches the user's actual wait (8.2s) rather than freezing when
+  // the last spinner resolves (which is ~250ms earlier).
   useEffect(() => {
-    if (allDone) return
+    if (showButton) return
     const id = setInterval(() => setElapsed((e) => e + 0.1), 100)
     return () => clearInterval(id)
-  }, [allDone])
+  }, [showButton])
 
-  // Step sequencer
+  // Step sequencer. INTER_STEP_DELAY is the pause between a checkmark appearing
+  // and the next spinner starting; FINAL_PAUSE is the breath before the button
+  // fades in. Tuned together with `durations` in buildSteps() to hit a clean
+  // total of 8.2s — keep the gaps tight so the per-step durations get the budget.
+  const INTER_STEP_DELAY = 75
+  const FINAL_PAUSE = 250
+
   useEffect(() => {
     if (currentStep >= steps.length) return
 
@@ -94,9 +105,9 @@ export function DeployIntro({ onComplete }: DeployIntroProps) {
           setCurrentStep((s) => s + 1)
         } else {
           setAllDone(true)
-          setTimeout(() => setShowButton(true), 500)
+          setTimeout(() => setShowButton(true), FINAL_PAUSE)
         }
-      }, 200)
+      }, INTER_STEP_DELAY)
     }, steps[currentStep].duration)
 
     return () => clearTimeout(timer)

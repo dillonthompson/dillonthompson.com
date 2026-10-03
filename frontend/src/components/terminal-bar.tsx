@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 const COMMANDS: Record<string, { description: string; action: 'navigate' | 'response'; value: string }> = {
   help:    { description: 'List available commands', action: 'response', value: '' },
   home:    { description: 'Go home', action: 'navigate', value: '/' },
+  about:   { description: 'About me', action: 'navigate', value: '/about' },
   contact: { description: 'Get in touch', action: 'response', value: 'Email me: dj.thompson715@gmail.com' },
   whoami:  { description: '???', action: 'response', value: 'Dillon Thompson — Senior Full Stack Engineer & Technical Consultant' },
   clear:   { description: 'Clear output', action: 'response', value: '' },
@@ -14,6 +15,13 @@ interface TerminalLine {
   text: string
 }
 
+function helpText(): string {
+  const lines = Object.entries(COMMANDS).map(
+    ([cmd, { description }]) => `  ${cmd.padEnd(12)} ${description}`
+  )
+  return 'Available commands (type one and hit enter):\n' + lines.join('\n')
+}
+
 export function TerminalBar() {
   const [input, setInput] = useState('')
   const [expanded, setExpanded] = useState(false)
@@ -22,6 +30,10 @@ export function TerminalBar() {
   const [historyIdx, setHistoryIdx] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
+  // Tracks whether we've auto-displayed help yet. We only do this once per
+  // session — re-showing it after `clear` or after the user closes and reopens
+  // would feel intrusive.
+  const helpShown = useRef(false)
   const navigate = useNavigate()
 
   const scrollToBottom = useCallback(() => {
@@ -46,10 +58,7 @@ export function TerminalBar() {
     }
 
     if (trimmed === 'help') {
-      const lines = Object.entries(COMMANDS).map(
-        ([cmd, { description }]) => `  ${cmd.padEnd(12)} ${description}`
-      )
-      setHistory([...newHistory, { type: 'output', text: 'Available commands:\n' + lines.join('\n') }])
+      setHistory([...newHistory, { type: 'output', text: helpText() }])
       return
     }
 
@@ -135,6 +144,17 @@ export function TerminalBar() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [])
+
+  // Surface the help listing the first time the user opens the terminal so the
+  // available commands are obvious. Subsequent opens keep whatever's there —
+  // including an intentionally empty pane after `clear` — so it doesn't feel
+  // chatty.
+  useEffect(() => {
+    if (expanded && !helpShown.current) {
+      helpShown.current = true
+      setHistory((prev) => [...prev, { type: 'output', text: helpText() }])
+    }
+  }, [expanded])
 
   return (
     <div className="w-full max-w-2xl mx-auto">
