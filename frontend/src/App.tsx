@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -182,6 +183,9 @@ function App() {
             }}
           >
             See my work
+          </Button>
+          <Button variant="outline" size="lg" className="cursor-pointer" render={<Link to="/about" />}>
+            About me
           </Button>
         </div>
         <div className="flex flex-wrap gap-3 justify-center mt-6">

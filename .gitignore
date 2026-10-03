@@ -33,3 +33,6 @@ dist/
 .terraform.lock.hcl
 *.tfvars
 !*.tfvars.example
+
+# Generated resume PDF (produced by `pnpm resume:pdf` in frontend/)
+frontend/scripts/Dillon_Thompson_Resume.pdf
