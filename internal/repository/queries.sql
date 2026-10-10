@@ -40,6 +40,8 @@ VALUES (
 RETURNING id, slug, title, description, body_md, tags, status, published_at, created_at, updated_at;
 
 -- name: UpdatePost :one
+-- Optimistic concurrency: only updates if the row is unchanged since the client
+-- loaded it (expected_updated_at); no rows means not found OR changed elsewhere.
 UPDATE posts
 SET slug = sqlc.arg(slug),
     title = sqlc.arg(title),
@@ -52,7 +54,7 @@ SET slug = sqlc.arg(slug),
         ELSE published_at
     END,
     updated_at = now()
-WHERE id = sqlc.arg(id)
+WHERE id = sqlc.arg(id) AND updated_at = sqlc.arg(expected_updated_at)
 RETURNING id, slug, title, description, body_md, tags, status, published_at, created_at, updated_at;
 
 -- name: DeletePost :execrows

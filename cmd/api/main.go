@@ -18,6 +18,21 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// resolveSiteURL picks the public origin used for canonical links, RSS, and the
+// admin same-origin check. SITE_URL wins; otherwise it is derived from
+// SITE_ADDRESS (already passed to the container for Caddy) so changing the
+// served host can't leave these pointing at a stale hardcoded domain.
+func resolveSiteURL(siteURL, siteAddress string) string {
+	if siteURL != "" {
+		return siteURL
+	}
+	// ":80"-style addresses are local/test listeners with no hostname.
+	if siteAddress != "" && !strings.HasPrefix(siteAddress, ":") {
+		return "https://" + siteAddress
+	}
+	return "https://dillonthompson.com"
+}
+
 func splitCSV(s string) []string {
 	var out []string
 	for _, part := range strings.Split(s, ",") {
@@ -67,10 +82,7 @@ func main() {
 	experienceHandler := handlers.NewExperienceHandler(repo.Queries)
 	profileHandler := handlers.NewProfileHandler(repo.Queries)
 
-	siteURL := os.Getenv("SITE_URL")
-	if siteURL == "" {
-		siteURL = "https://dillonthompson.com"
-	}
+	siteURL := resolveSiteURL(os.Getenv("SITE_URL"), os.Getenv("SITE_ADDRESS"))
 	blogHandler, err := handlers.NewBlogHandler(repo.Queries, siteURL)
 	if err != nil {
 		slog.Error("failed to initialize blog handler", "error", err)

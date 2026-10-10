@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useBlogStyles } from '@/hooks/use-blog-styles'
 import { usePageTitle } from '@/hooks/use-page-title'
-import { adminApi, type PostInput, type PostStatus } from '@/lib/admin-api'
+import { adminApi, isAbortError, type PostInput, type PostStatus } from '@/lib/admin-api'
 
 const fieldClass =
   'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -25,8 +25,15 @@ function parseTags(raw: string): string[] {
 const emptyForm = { title: '', slug: '', description: '', tags: '', status: 'draft' as PostStatus, body: '' }
 type Form = typeof emptyForm
 
+// Keyed by post id so navigating /admin/new → /admin/:id, or between two posts,
+// remounts the editor with fresh state instead of leaking the previous post's
+// form (and any in-flight load) into the next one.
 export default function AdminEditorPage() {
   const { id } = useParams<{ id: string }>()
+  return <AdminEditor key={id ?? 'new'} id={id} />
+}
+
+function AdminEditor({ id }: { id?: string }) {
   const isNew = !id
   usePageTitle(isNew ? 'Admin · New post' : 'Admin · Edit post')
   useBlogStyles()
@@ -37,14 +44,25 @@ export default function AdminEditorPage() {
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
+  // updated_at of the version we loaded or last saved; sent back on save so the
+  // server can refuse to overwrite a newer version from another tab.
+  const [loadedUpdatedAt, setLoadedUpdatedAt] = useState<string | null>(null)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [readingMinutes, setReadingMinutes] = useState(1)
 
+  // The router's blocker callback must read the *current* dirtiness, and must be
+  // clearable synchronously right before a post-save navigation.
+  const dirtyRef = useRef(false)
+  const markDirty = (value: boolean) => {
+    dirtyRef.current = value
+    setDirty(value)
+  }
+
   const update = <K extends keyof Form>(key: K, value: Form[K]) => {
     setForm((f) => ({ ...f, [key]: value }))
-    setDirty(true)
+    markDirty(true)
     setMessage(null)
   }
 
@@ -64,6 +82,7 @@ export default function AdminEditorPage() {
           status: post.status,
           body: post.body_md,
         })
+        setLoadedUpdatedAt(post.updated_at)
         setSlugTouched(true)
       })
       .catch((err) => !cancelled && setMessage({ kind: 'error', text: err.message }))
@@ -87,7 +106,7 @@ export default function AdminEditorPage() {
           setPreviewError(null)
         })
         .catch((err) => {
-          if (err.name !== 'AbortError') setPreviewError(err.message)
+          if (!isAbortError(err)) setPreviewError(err.message)
         })
     }, 500)
     return () => {
@@ -96,13 +115,27 @@ export default function AdminEditorPage() {
     }
   }, [form.body])
 
-  // Warn before losing unsaved work.
+  // Unsaved work survives neither a tab close/reload (beforeunload) nor in-app
+  // navigation: the "← All posts" link, the terminal bar's `home`/`about`, and
+  // the browser Back button all go through the router, where the blocker asks first.
   useEffect(() => {
     if (!dirty) return
     const handler = (e: BeforeUnloadEvent) => e.preventDefault()
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [dirty])
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) => dirtyRef.current && currentLocation.pathname !== nextLocation.pathname,
+  )
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    if (window.confirm('You have unsaved changes. Leave this page and discard them?')) {
+      blocker.proceed()
+    } else {
+      blocker.reset()
+    }
+  }, [blocker])
 
   const save = useCallback(async () => {
     if (saving) return
@@ -119,20 +152,23 @@ export default function AdminEditorPage() {
     try {
       if (isNew) {
         const created = await adminApi.create(input)
+        dirtyRef.current = false // clear synchronously so the blocker lets us through
         setDirty(false)
         navigate(`/admin/${created.id}`, { replace: true })
       } else {
-        const updated = await adminApi.update(id!, input)
+        if (!loadedUpdatedAt) throw new Error('Post has not finished loading yet')
+        const updated = await adminApi.update(id!, { ...input, updated_at: loadedUpdatedAt })
         setForm((f) => ({ ...f, slug: updated.slug, tags: updated.tags.join(', '), status: updated.status }))
-        setDirty(false)
-        setMessage({ kind: 'ok', text: 'Saved. Public pages can take up to ~15 minutes to reflect changes, including unpublishing.' })
+        setLoadedUpdatedAt(updated.updated_at)
+        markDirty(false)
+        setMessage({ kind: 'ok', text: 'Saved. Public pages can take up to ~2 minutes to reflect changes, including unpublishing.' })
       }
     } catch (err) {
       setMessage({ kind: 'error', text: err instanceof Error ? err.message : 'Save failed' })
     } finally {
       setSaving(false)
     }
-  }, [form, id, isNew, navigate, saving])
+  }, [form, id, isNew, loadedUpdatedAt, navigate, saving])
 
   // Cmd/Ctrl+S saves. A ref keeps the listener stable while `save` changes.
   const saveRef = useRef(save)
@@ -152,6 +188,7 @@ export default function AdminEditorPage() {
     if (!id || !window.confirm(`Delete "${form.title}"? This can't be undone.`)) return
     try {
       await adminApi.remove(id)
+      dirtyRef.current = false
       setDirty(false)
       navigate('/admin', { replace: true })
     } catch (err) {

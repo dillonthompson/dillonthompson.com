@@ -153,8 +153,10 @@ Notes:
   returns 503; the public blog works regardless.
 - Local dev: set `ADMIN_DEV_BYPASS=true` (see `.env.example`). It is ignored
   whenever the Access settings are present, so it can't be active in prod.
-- New posts appear publicly within ~5 minutes (edge cache honors the API's
-  `s-maxage=300`). No purge step.
+- Public changes show up within ~2 minutes (60s edge cache honoring the API's
+  `s-maxage=60`, plus 60s in the browser). That is also how long an unpublished
+  or deleted post can linger. There is no stale-while-revalidate window and no
+  purge step.
 - Rotating the Access application (destroy/recreate) changes `CF_ACCESS_AUD`;
   update the GitHub variable and redeploy.
 

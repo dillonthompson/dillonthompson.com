@@ -27,11 +27,13 @@ var blogTemplateFS embed.FS
 //go:embed blogassets/blog.css blogassets/theme.js blogassets/terminal.js blogassets/geist-latin.woff2
 var blogStaticFS embed.FS
 
-// Public pages are cached briefly at the browser and longer at the edge, and
-// can be served stale while revalidating. A newly published post shows up
-// within a few minutes without anyone having to purge Cloudflare.
+// Public pages are cached briefly at the browser and at the Cloudflare edge
+// (cache rule in deploy/tofu/cache.tf honors this header). There is
+// deliberately no stale-while-revalidate window and no purge step: an
+// unpublished or deleted post stays reachable for at most ~2 minutes (60s edge
+// + 60s browser), while a new post appears just as quickly.
 const (
-	htmlCacheControl   = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+	htmlCacheControl   = "public, max-age=60, s-maxage=60"
 	assetCacheControl  = "public, max-age=3600"
 	blogDateLayout     = "January 2, 2006"
 	defaultDescription = "Notes on building secure, high-scale systems — Go, TypeScript, and the infrastructure in between."
@@ -56,6 +58,16 @@ type BlogHandler struct {
 type blogAsset struct {
 	contentType string
 	body        []byte
+	etag        string // computed once; the bytes never change
+}
+
+func newBlogAsset(contentType string, body []byte) blogAsset {
+	return blogAsset{contentType: contentType, body: body, etag: etagFor(body)}
+}
+
+func etagFor(body []byte) string {
+	sum := sha256.Sum256(body)
+	return `"` + hex.EncodeToString(sum[:8]) + `"`
 }
 
 func NewBlogHandler(queries *repository.Queries, siteURL string) (*BlogHandler, error) {
@@ -68,7 +80,7 @@ func NewBlogHandler(queries *repository.Queries, siteURL string) (*BlogHandler, 
 		return nil, err
 	}
 	assets := map[string]blogAsset{
-		"syntax.css": {"text/css; charset=utf-8", []byte(syntax)},
+		"syntax.css": newBlogAsset("text/css; charset=utf-8", []byte(syntax)),
 	}
 	for name, contentType := range map[string]string{
 		"blog.css":          "text/css; charset=utf-8",
@@ -80,7 +92,7 @@ func NewBlogHandler(queries *repository.Queries, siteURL string) (*BlogHandler, 
 		if err != nil {
 			return nil, fmt.Errorf("reading blog asset %s: %w", name, err)
 		}
-		assets[name] = blogAsset{contentType, body}
+		assets[name] = newBlogAsset(contentType, body)
 	}
 	return &BlogHandler{
 		queries: queries,
@@ -219,8 +231,10 @@ func (h *BlogHandler) renderHTML(c *gin.Context, status int, name string, data p
 }
 
 func (h *BlogHandler) serveCached(c *gin.Context, contentType, cacheControl string, body []byte) {
-	sum := sha256.Sum256(body)
-	etag := `"` + hex.EncodeToString(sum[:8]) + `"`
+	h.serveWithETag(c, contentType, cacheControl, body, etagFor(body))
+}
+
+func (h *BlogHandler) serveWithETag(c *gin.Context, contentType, cacheControl string, body []byte, etag string) {
 	c.Header("ETag", etag)
 	c.Header("Cache-Control", cacheControl)
 	if etagMatches(c.GetHeader("If-None-Match"), etag) {
@@ -256,7 +270,7 @@ func etagMatches(header, etag string) bool {
 func (h *BlogHandler) Asset(name string) gin.HandlerFunc {
 	a := h.assets[name]
 	return func(c *gin.Context) {
-		h.serveCached(c, a.contentType, assetCacheControl, a.body)
+		h.serveWithETag(c, a.contentType, assetCacheControl, a.body, a.etag)
 	}
 }
 

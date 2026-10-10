@@ -1,10 +1,10 @@
 # Edge caching for the server-rendered blog.
 #
 # Cloudflare does not cache HTML by default, so without this rule the
-# `Cache-Control: s-maxage=300` the Go API sends is ignored and every blog
+# `Cache-Control: s-maxage=60` the Go API sends is ignored and every blog
 # request reaches the origin (and Neon). "Respect origin" lets the API stay in
-# charge of TTLs: a newly published post appears within ~5 minutes, with no
-# purge step.
+# charge of TTLs: a newly published (or unpublished) post is reflected within
+# ~2 minutes, with no purge step.
 #
 # Scope is deliberately narrow — only public blog URLs. /admin and
 # /api/v1/admin are never matched, and the admin API sends `no-store` anyway.

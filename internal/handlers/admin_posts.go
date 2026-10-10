@@ -52,12 +52,15 @@ func NewAdminPostsHandler(queries *repository.Queries) *AdminPostsHandler {
 
 // postInput is the client-supplied shape for create and update.
 type postInput struct {
-	Slug        string   `json:"slug"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	BodyMD      string   `json:"body_md"`
-	Tags        []string `json:"tags"`
-	Status      string   `json:"status"`
+	// UpdatedAt is the updated_at of the version the client loaded. Required for
+	// updates (optimistic concurrency); ignored on create.
+	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
+	Slug        string     `json:"slug"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	BodyMD      string     `json:"body_md"`
+	Tags        []string   `json:"tags"`
+	Status      string     `json:"status"`
 }
 
 // postDTO is the API representation of a post. Body is omitted from list
@@ -163,7 +166,7 @@ func readInput(c *gin.Context) (postInput, bool) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxRequestBytes)
 	var in postInput
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		writeBindError(c, err)
 		return in, false
 	}
 	if msg := in.validate(); msg != "" {
@@ -171,6 +174,27 @@ func readInput(c *gin.Context) (postInput, bool) {
 		return in, false
 	}
 	return in, true
+}
+
+// writeBindError distinguishes an oversized body (413) from malformed JSON (400).
+func writeBindError(c *gin.Context, err error) {
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request is too large"})
+		return
+	}
+	c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+}
+
+// idParam returns the :id route param if it is a UUID. Otherwise it writes a
+// 404 (so malformed ids never reach the database) and reports false.
+func idParam(c *gin.Context) (string, bool) {
+	id := c.Param("id")
+	if !uuidRe.MatchString(id) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return "", false
+	}
+	return id, true
 }
 
 // writeDBError maps database errors to API responses without leaking details.
@@ -215,9 +239,8 @@ func (h *AdminPostsHandler) List(c *gin.Context) {
 
 func (h *AdminPostsHandler) Get(c *gin.Context) {
 	noStore(c)
-	id := c.Param("id")
-	if !uuidRe.MatchString(id) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+	id, ok := idParam(c)
+	if !ok {
 		return
 	}
 	post, err := h.queries.GetPostByID(c.Request.Context(), id)
@@ -251,19 +274,29 @@ func (h *AdminPostsHandler) Create(c *gin.Context) {
 
 func (h *AdminPostsHandler) Update(c *gin.Context) {
 	noStore(c)
-	id := c.Param("id")
-	if !uuidRe.MatchString(id) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+	id, ok := idParam(c)
+	if !ok {
 		return
 	}
 	in, ok := readInput(c)
 	if !ok {
 		return
 	}
+	if in.UpdatedAt == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "updated_at is required"})
+		return
+	}
 	post, err := h.queries.UpdatePost(c.Request.Context(), repository.UpdatePostParams{
 		ID: id, Slug: in.Slug, Title: in.Title, Description: in.Description, BodyMd: in.BodyMD, Tags: in.Tags, Status: in.Status,
+		ExpectedUpdatedAt: *in.UpdatedAt,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
+		// Either the post is gone, or it changed since this client loaded it
+		// (another tab or device). Don't silently overwrite the newer version.
+		if _, getErr := h.queries.GetPostByID(c.Request.Context(), id); getErr == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "this post was changed since you loaded it (another tab?). Reload to get the latest version."})
+			return
+		}
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
@@ -277,9 +310,8 @@ func (h *AdminPostsHandler) Update(c *gin.Context) {
 
 func (h *AdminPostsHandler) Delete(c *gin.Context) {
 	noStore(c)
-	id := c.Param("id")
-	if !uuidRe.MatchString(id) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+	id, ok := idParam(c)
+	if !ok {
 		return
 	}
 	n, err := h.queries.DeletePost(c.Request.Context(), id)
@@ -304,8 +336,12 @@ func (h *AdminPostsHandler) Preview(c *gin.Context) {
 	var in struct {
 		BodyMD string `json:"body_md"`
 	}
-	if err := c.ShouldBindJSON(&in); err != nil || len(in.BodyMD) > maxBodyBytes {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+	if err := c.ShouldBindJSON(&in); err != nil {
+		writeBindError(c, err)
+		return
+	}
+	if len(in.BodyMD) > maxBodyBytes {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "body is too large"})
 		return
 	}
 	html, err := markdown.Render(in.BodyMD)

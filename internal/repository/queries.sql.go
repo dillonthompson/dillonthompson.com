@@ -321,20 +321,23 @@ SET slug = $1,
         ELSE published_at
     END,
     updated_at = now()
-WHERE id = $7
+WHERE id = $7 AND updated_at = $8
 RETURNING id, slug, title, description, body_md, tags, status, published_at, created_at, updated_at
 `
 
 type UpdatePostParams struct {
-	Slug        string   `json:"slug"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	BodyMd      string   `json:"body_md"`
-	Tags        []string `json:"tags"`
-	Status      string   `json:"status"`
-	ID          string   `json:"id"`
+	Slug              string    `json:"slug"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description"`
+	BodyMd            string    `json:"body_md"`
+	Tags              []string  `json:"tags"`
+	Status            string    `json:"status"`
+	ID                string    `json:"id"`
+	ExpectedUpdatedAt time.Time `json:"expected_updated_at"`
 }
 
+// Optimistic concurrency: only updates if the row is unchanged since the client
+// loaded it (expected_updated_at); no rows means not found OR changed elsewhere.
 func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (Post, error) {
 	row := q.db.QueryRowContext(ctx, updatePost,
 		arg.Slug,
@@ -344,6 +347,7 @@ func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (Post, e
 		pq.Array(arg.Tags),
 		arg.Status,
 		arg.ID,
+		arg.ExpectedUpdatedAt,
 	)
 	var i Post
 	err := row.Scan(

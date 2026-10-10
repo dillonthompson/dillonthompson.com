@@ -21,6 +21,8 @@ export interface Post extends PostSummary {
 }
 
 export interface PostInput {
+  /** updated_at of the version being edited; required when updating. */
+  updated_at?: string
   slug: string
   title: string
   description: string
@@ -31,10 +33,14 @@ export interface PostInput {
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
-    super(message)
+  constructor(status: number, message: string, options?: ErrorOptions) {
+    super(message, options)
     this.status = status
   }
+}
+
+export function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'AbortError'
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -45,10 +51,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...init,
       headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
     })
-  } catch {
+  } catch (err) {
+    // A caller-initiated abort (e.g. a newer preview request superseding this
+    // one) is not a failure; let it through untouched.
+    if (isAbortError(err)) throw err
     // An expired Cloudflare Access session redirects XHRs to a cross-origin
     // login page, which the browser reports as a network failure.
-    throw new ApiError(0, 'Request failed. Your session may have expired — reload the page to sign in again.')
+    throw new ApiError(0, 'Request failed. Your session may have expired — reload the page to sign in again.', { cause: err })
   }
   if (res.status === 204) return undefined as T
   const data = await res.json().catch(() => null)
