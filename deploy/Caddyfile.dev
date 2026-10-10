@@ -20,6 +20,12 @@
 		reverse_proxy localhost:8080
 	}
 
+	# Server-rendered blog, feed and sitemap come from the API too.
+	@blog path /blog /blog/* /rss.xml /sitemap.xml
+	handle @blog {
+		reverse_proxy localhost:8080
+	}
+
 	# Serve the built frontend from frontend/dist — run `pnpm build` first.
 	handle {
 		root * ./frontend/dist

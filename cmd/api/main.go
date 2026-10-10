@@ -7,15 +7,41 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/dillonthompson/dillonthompson.com/internal/handlers"
-	"github.com/joho/godotenv"
 	"github.com/dillonthompson/dillonthompson.com/internal/middleware"
 	"github.com/dillonthompson/dillonthompson.com/internal/repository"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
+
+// resolveSiteURL picks the public origin used for canonical links, RSS, and the
+// admin same-origin check. SITE_URL wins; otherwise it is derived from
+// SITE_ADDRESS (already passed to the container for Caddy) so changing the
+// served host can't leave these pointing at a stale hardcoded domain.
+func resolveSiteURL(siteURL, siteAddress string) string {
+	if siteURL != "" {
+		return siteURL
+	}
+	// ":80"-style addresses are local/test listeners with no hostname.
+	if siteAddress != "" && !strings.HasPrefix(siteAddress, ":") {
+		return "https://" + siteAddress
+	}
+	return "https://dillonthompson.com"
+}
+
+func splitCSV(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -56,12 +82,65 @@ func main() {
 	experienceHandler := handlers.NewExperienceHandler(repo.Queries)
 	profileHandler := handlers.NewProfileHandler(repo.Queries)
 
+	siteURL := resolveSiteURL(os.Getenv("SITE_URL"), os.Getenv("SITE_ADDRESS"))
+	blogHandler, err := handlers.NewBlogHandler(repo.Queries, siteURL)
+	if err != nil {
+		slog.Error("failed to initialize blog handler", "error", err)
+		os.Exit(1)
+	}
+
+	// Crawlers and link checkers probe with HEAD; Gin doesn't derive it from GET.
+	readMethods := []string{http.MethodGet, http.MethodHead}
+
+	// Public, server-rendered blog. Caddy routes these paths to the API; see
+	// deploy/Caddyfile.prod. Asset routes are registered explicitly so they
+	// can't be shadowed by the :slug param.
+	router.Match(readMethods, "/blog", blogHandler.Index)
+	for _, name := range []string{"blog.css", "syntax.css", "theme.js", "terminal.js", "geist-latin.woff2"} {
+		router.Match(readMethods, "/blog/assets/"+name, blogHandler.Asset(name))
+	}
+	router.Match(readMethods, "/blog/:slug", blogHandler.Post)
+	router.Match(readMethods, "/rss.xml", blogHandler.RSS)
+	router.Match(readMethods, "/sitemap.xml", blogHandler.Sitemap)
+
+	// Admin API. Authentication is Cloudflare Access (JWT verified here, not just
+	// trusted from the edge) and fails closed when unconfigured; see
+	// internal/middleware/access.go. Env: CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD,
+	// ADMIN_EMAILS (comma-separated), and ADMIN_DEV_BYPASS=true for local dev only.
+	accessCfg := middleware.AccessConfig{
+		TeamDomain:    os.Getenv("CF_ACCESS_TEAM_DOMAIN"),
+		Audience:      os.Getenv("CF_ACCESS_AUD"),
+		AllowedEmails: splitCSV(os.Getenv("ADMIN_EMAILS")),
+		DevBypass:     os.Getenv("ADMIN_DEV_BYPASS") == "true",
+	}
+	accessAuth, err := middleware.NewAccessAuth(context.Background(), accessCfg)
+	if err != nil {
+		// A bad admin config must only take the admin offline. Exiting here
+		// would crash-loop the whole API (and the public blog) and trip the
+		// deploy rollback.
+		slog.Error("admin auth misconfigured; admin endpoints disabled", "error", err)
+		accessAuth = func(c *gin.Context) {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "admin is not configured"})
+		}
+	}
+	sameOrigin := middleware.RequireSameOrigin([]string{siteURL}, accessCfg.BypassActive())
+	adminPostsHandler := handlers.NewAdminPostsHandler(repo.Queries)
+
 	v1 := router.Group("/api/v1")
 	{
 		v1.GET("/health", healthHandler.Check)
 		v1.GET("/experience", experienceHandler.List)
 		v1.GET("/profile", profileHandler.GetFull)
 		v1.GET("/profile/:key", profileHandler.GetSection)
+
+		admin := v1.Group("/admin", accessAuth, sameOrigin)
+		admin.GET("/me", adminPostsHandler.Me)
+		admin.GET("/posts", adminPostsHandler.List)
+		admin.POST("/posts", adminPostsHandler.Create)
+		admin.GET("/posts/:id", adminPostsHandler.Get)
+		admin.PUT("/posts/:id", adminPostsHandler.Update)
+		admin.DELETE("/posts/:id", adminPostsHandler.Delete)
+		admin.POST("/preview", adminPostsHandler.Preview)
 	}
 
 	srv := &http.Server{

@@ -26,6 +26,19 @@ type Experience struct {
 	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
+type Post struct {
+	ID          string       `json:"id"`
+	Slug        string       `json:"slug"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	BodyMd      string       `json:"body_md"`
+	Tags        []string     `json:"tags"`
+	Status      string       `json:"status"`
+	PublishedAt sql.NullTime `json:"published_at"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+}
+
 type Profile struct {
 	Key     string          `json:"key"`
 	Content json.RawMessage `json:"content"`

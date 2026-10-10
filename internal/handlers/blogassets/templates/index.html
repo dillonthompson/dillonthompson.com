@@ -1,0 +1,13 @@
+{{template "head" .}}
+<h1>Blog</h1>
+<p class="post-meta">Notes on building secure, high-scale systems.</p>
+{{if .Posts}}
+<ul class="post-list">
+{{range .Posts}}<li>
+<h2><a href="/blog/{{.Slug}}">{{.Title}}</a></h2>
+<div class="post-meta"><time datetime="{{.PublishedISO}}">{{.PublishedDisplay}}</time>{{range .Tags}} <span class="tag">{{.}}</span>{{end}}</div>
+{{if .Description}}<p>{{.Description}}</p>{{end}}
+</li>{{end}}
+</ul>
+{{else}}<p>Nothing here yet. Check back soon.</p>{{end}}
+{{template "foot" .}}

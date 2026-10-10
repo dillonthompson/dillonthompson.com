@@ -10,7 +10,64 @@ import (
 	"database/sql"
 	"encoding/json"
 	"time"
+
+	"github.com/lib/pq"
 )
+
+const createPost = `-- name: CreatePost :one
+INSERT INTO posts (slug, title, description, body_md, tags, status, published_at)
+VALUES (
+    $1, $2, $3, $4, $5, $6,
+    CASE WHEN $6 = 'published' THEN now() END
+)
+RETURNING id, slug, title, description, body_md, tags, status, published_at, created_at, updated_at
+`
+
+type CreatePostParams struct {
+	Slug        string   `json:"slug"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	BodyMd      string   `json:"body_md"`
+	Tags        []string `json:"tags"`
+	Status      string   `json:"status"`
+}
+
+func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, error) {
+	row := q.db.QueryRowContext(ctx, createPost,
+		arg.Slug,
+		arg.Title,
+		arg.Description,
+		arg.BodyMd,
+		pq.Array(arg.Tags),
+		arg.Status,
+	)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.BodyMd,
+		pq.Array(&i.Tags),
+		&i.Status,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deletePost = `-- name: DeletePost :execrows
+DELETE FROM posts WHERE id = $1
+`
+
+func (q *Queries) DeletePost(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deletePost, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
 
 const getFullProfile = `-- name: GetFullProfile :many
 SELECT key, content FROM profile ORDER BY key
@@ -37,6 +94,30 @@ func (q *Queries) GetFullProfile(ctx context.Context) ([]Profile, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getPostByID = `-- name: GetPostByID :one
+SELECT id, slug, title, description, body_md, tags, status, published_at, created_at, updated_at
+FROM posts
+WHERE id = $1
+`
+
+func (q *Queries) GetPostByID(ctx context.Context, id string) (Post, error) {
+	row := q.db.QueryRowContext(ctx, getPostByID, id)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.BodyMd,
+		pq.Array(&i.Tags),
+		&i.Status,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getProfileSection = `-- name: GetProfileSection :one
@@ -102,4 +183,184 @@ func (q *Queries) GetPublishedExperiences(ctx context.Context) ([]GetPublishedEx
 		return nil, err
 	}
 	return items, nil
+}
+
+const getPublishedPostBySlug = `-- name: GetPublishedPostBySlug :one
+SELECT id, slug, title, description, body_md, tags, status, published_at, created_at, updated_at
+FROM posts
+WHERE slug = $1 AND status = 'published'
+`
+
+func (q *Queries) GetPublishedPostBySlug(ctx context.Context, slug string) (Post, error) {
+	row := q.db.QueryRowContext(ctx, getPublishedPostBySlug, slug)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.BodyMd,
+		pq.Array(&i.Tags),
+		&i.Status,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listAllPosts = `-- name: ListAllPosts :many
+SELECT id, slug, title, description, tags, status, published_at, created_at, updated_at
+FROM posts
+ORDER BY updated_at DESC
+`
+
+type ListAllPostsRow struct {
+	ID          string       `json:"id"`
+	Slug        string       `json:"slug"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Tags        []string     `json:"tags"`
+	Status      string       `json:"status"`
+	PublishedAt sql.NullTime `json:"published_at"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+}
+
+func (q *Queries) ListAllPosts(ctx context.Context) ([]ListAllPostsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAllPosts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllPostsRow{}
+	for rows.Next() {
+		var i ListAllPostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Title,
+			&i.Description,
+			pq.Array(&i.Tags),
+			&i.Status,
+			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublishedPosts = `-- name: ListPublishedPosts :many
+SELECT id, slug, title, description, tags, published_at, updated_at
+FROM posts
+WHERE status = 'published'
+ORDER BY published_at DESC
+`
+
+type ListPublishedPostsRow struct {
+	ID          string       `json:"id"`
+	Slug        string       `json:"slug"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Tags        []string     `json:"tags"`
+	PublishedAt sql.NullTime `json:"published_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+}
+
+func (q *Queries) ListPublishedPosts(ctx context.Context) ([]ListPublishedPostsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPublishedPosts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPublishedPostsRow{}
+	for rows.Next() {
+		var i ListPublishedPostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Title,
+			&i.Description,
+			pq.Array(&i.Tags),
+			&i.PublishedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updatePost = `-- name: UpdatePost :one
+UPDATE posts
+SET slug = $1,
+    title = $2,
+    description = $3,
+    body_md = $4,
+    tags = $5,
+    status = $6,
+    published_at = CASE
+        WHEN $6 = 'published' AND published_at IS NULL THEN now()
+        ELSE published_at
+    END,
+    updated_at = now()
+WHERE id = $7 AND updated_at = $8
+RETURNING id, slug, title, description, body_md, tags, status, published_at, created_at, updated_at
+`
+
+type UpdatePostParams struct {
+	Slug              string    `json:"slug"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description"`
+	BodyMd            string    `json:"body_md"`
+	Tags              []string  `json:"tags"`
+	Status            string    `json:"status"`
+	ID                string    `json:"id"`
+	ExpectedUpdatedAt time.Time `json:"expected_updated_at"`
+}
+
+// Optimistic concurrency: only updates if the row is unchanged since the client
+// loaded it (expected_updated_at); no rows means not found OR changed elsewhere.
+func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (Post, error) {
+	row := q.db.QueryRowContext(ctx, updatePost,
+		arg.Slug,
+		arg.Title,
+		arg.Description,
+		arg.BodyMd,
+		pq.Array(arg.Tags),
+		arg.Status,
+		arg.ID,
+		arg.ExpectedUpdatedAt,
+	)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.BodyMd,
+		pq.Array(&i.Tags),
+		&i.Status,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

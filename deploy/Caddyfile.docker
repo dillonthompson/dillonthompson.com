@@ -27,6 +27,16 @@
 		}
 	}
 
+	# Server-rendered blog, feed and sitemap are served by the Go API (the SPA
+	# can't produce per-post HTML for crawlers and link previews). Cache-Control
+	# is set by the API, so it's deliberately not overridden here.
+	@blog path /blog /blog/* /rss.xml /sitemap.xml
+	handle @blog {
+		reverse_proxy api:8080 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
 	handle {
 		root * /srv
 		try_files {path} /index.html
