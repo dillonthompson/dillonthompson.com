@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const COMMANDS: Record<string, { description: string; action: 'navigate' | 'response'; value: string }> = {
+const COMMANDS: Record<string, { description: string; action: 'navigate' | 'external' | 'response'; value: string }> = {
   help:    { description: 'List available commands', action: 'response', value: '' },
   home:    { description: 'Go home', action: 'navigate', value: '/' },
   about:   { description: 'About me', action: 'navigate', value: '/about' },
+  // /blog is server-rendered by the Go API, so it needs a real page load
+  // rather than a client-side route change.
+  blog:    { description: 'Read the blog', action: 'external', value: '/blog' },
   contact: { description: 'Get in touch', action: 'response', value: 'Email me: dj.thompson715@gmail.com' },
   whoami:  { description: '???', action: 'response', value: 'Dillon Thompson — Senior Full Stack Engineer & Technical Consultant' },
   clear:   { description: 'Clear output', action: 'response', value: '' },
@@ -93,6 +96,12 @@ export function TerminalBar() {
         navigate(cmd.value)
         setExpanded(false)
       }, 300)
+      return
+    }
+
+    if (cmd.action === 'external') {
+      setHistory([...newHistory, { type: 'output', text: `→ navigating to ${cmd.value}` }])
+      setTimeout(() => window.location.assign(cmd.value), 300)
       return
     }
 

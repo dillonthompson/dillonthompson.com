@@ -1,0 +1,8 @@
+{{template "head" .}}
+<a class="back-link" href="/blog">&larr; All posts</a>
+<article>
+<h1>{{.Post.Title}}</h1>
+<div class="post-meta"><time datetime="{{.Post.PublishedISO}}">{{.Post.PublishedDisplay}}</time> &middot; {{.Post.ReadingMinutes}} min read{{range .Post.Tags}} <span class="tag">{{.}}</span>{{end}}</div>
+<div class="blog-prose">{{.Post.BodyHTML}}</div>
+</article>
+{{template "foot" .}}

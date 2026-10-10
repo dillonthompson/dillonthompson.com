@@ -9,10 +9,23 @@
 #     - Zone → DNS → Edit             (for cloudflare_dns_record)
 #     - Zone → Zone WAF → Edit        (for cloudflare_ruleset rate limiting)
 #     - Zone → Zone → Read            (to resolve the zone)
+#     - Zone → Cache Rules → Edit     (for the blog cache rule, cache.tf)
+#     - Account → Access: Apps and Policies → Edit   (for the blog admin, access.tf)
 #   Zone resources: "Include → Specific zone → dillonthompson.com".
+#   Account resources: "Include → your account".
 #
 # cloudflare_zone_id:
 #   Cloudflare dashboard → dillonthompson.com → right sidebar → API → Zone ID.
+#
+# cloudflare_account_id:
+#   Cloudflare dashboard → account home → ⋯ menu next to the account → Copy account ID.
+#
+# access_team_name:
+#   The <name> in <name>.cloudflareaccess.com. Create your Zero Trust org in the
+#   dashboard first (Zero Trust → Settings); the Free plan is enough.
+#
+# admin_email:
+#   The single address allowed into the blog admin (receives the login code).
 #
 # ssh_public_key:
 #   Contents of ~/.ssh/id_ed25519.pub (or whichever key you use for servers).
@@ -26,6 +39,9 @@
 hcloud_token          = "REDACTED"
 cloudflare_api_token  = "REDACTED"
 cloudflare_zone_id    = "REDACTED"
+cloudflare_account_id = "REDACTED"
+access_team_name      = "your-team-name"
+admin_email           = "you@example.com"
 ssh_public_key        = "ssh-ed25519 AAAA... dillon@laptop"
 deploy_ssh_public_key = "ssh-ed25519 AAAA... dillonthompson-deploy"
 

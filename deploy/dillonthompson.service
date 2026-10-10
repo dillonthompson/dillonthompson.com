@@ -2,7 +2,7 @@
 #
 # systemd wrapper around `docker run`. The unit reads /opt/dillonthompson/.env
 # for the image reference (pinned by digest) and the app's runtime env (DATABASE_URL,
-# SITE_ADDRESS, LETSENCRYPT_EMAIL). The deploy workflow rewrites that file and
+# SITE_ADDRESS, LETSENCRYPT_EMAIL, and the blog-admin CF_ACCESS_* / ADMIN_EMAILS). The deploy workflow rewrites that file and
 # calls `systemctl restart` to swap containers.
 #
 # This file is owned by the repo; install it into /etc/systemd/system/ via
@@ -15,7 +15,8 @@ Wants=network-online.target
 Requires=docker.service
 
 [Service]
-# Read IMAGE, DATABASE_URL, SITE_ADDRESS, LETSENCRYPT_EMAIL from the env file.
+# Read IMAGE, DATABASE_URL, SITE_ADDRESS, LETSENCRYPT_EMAIL, CF_ACCESS_TEAM_DOMAIN,
+# CF_ACCESS_AUD, ADMIN_EMAILS from the env file.
 # Root-owned, mode 600; GitHub Actions rewrites this on every deploy.
 EnvironmentFile=/opt/dillonthompson/.env
 
@@ -43,6 +44,9 @@ ExecStart=/usr/bin/docker run --rm --name dillonthompson \
   -e DATABASE_URL \
   -e SITE_ADDRESS \
   -e LETSENCRYPT_EMAIL \
+  -e CF_ACCESS_TEAM_DOMAIN \
+  -e CF_ACCESS_AUD \
+  -e ADMIN_EMAILS \
   -v caddy_data:/data \
   -v caddy_config:/config \
   ${IMAGE}

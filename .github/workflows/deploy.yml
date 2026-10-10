@@ -79,6 +79,13 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SITE_ADDRESS: ${{ vars.SITE_ADDRESS || 'dillonthompson.com' }}
           LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL || 'dj.thompson715@gmail.com' }}
+          # Blog admin (non-secret). If all are unset, or the set is incomplete,
+          # the API keeps only the admin disabled (503); the rest of the site is
+          # unaffected. Values come from `tofu output`; see
+          # deploy/README.md → "Blog admin".
+          CF_ACCESS_TEAM_DOMAIN: ${{ vars.CF_ACCESS_TEAM_DOMAIN }}
+          CF_ACCESS_AUD: ${{ vars.CF_ACCESS_AUD }}
+          ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
         run: |
           # Build the env file locally so every value is substituted here,
           # safely, instead of wrestling with nested heredocs over SSH.
@@ -88,6 +95,9 @@ jobs:
           DATABASE_URL=$DATABASE_URL
           SITE_ADDRESS=$SITE_ADDRESS
           LETSENCRYPT_EMAIL=$LETSENCRYPT_EMAIL
+          CF_ACCESS_TEAM_DOMAIN=$CF_ACCESS_TEAM_DOMAIN
+          CF_ACCESS_AUD=$CF_ACCESS_AUD
+          ADMIN_EMAILS=$ADMIN_EMAILS
           EOF
 
       - name: Upload env file and restart service

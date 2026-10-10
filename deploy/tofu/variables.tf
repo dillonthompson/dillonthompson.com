@@ -5,9 +5,24 @@ variable "hcloud_token" {
 }
 
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token scoped to Zone.DNS (Edit) for dillonthompson.com"
+  description = "Cloudflare API token. Needs Zone: DNS Edit, Zone WAF Edit, Zone Read, Cache Rules Edit (zone) and Account: Access: Apps and Policies Edit — see terraform.tfvars.example"
   type        = string
   sensitive   = true
+}
+
+variable "cloudflare_account_id" {
+  description = "Cloudflare account ID (needed for Zero Trust / Access). Dashboard → account home → ⋯ menu → Copy account ID."
+  type        = string
+}
+
+variable "access_team_name" {
+  description = "Your Zero Trust team name — the <name> in <name>.cloudflareaccess.com. Create the organization in the dashboard first."
+  type        = string
+}
+
+variable "admin_email" {
+  description = "The one email address allowed into the blog admin (Cloudflare Access policy and the API's allow-list)"
+  type        = string
 }
 
 variable "cloudflare_zone_id" {

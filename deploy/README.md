@@ -116,6 +116,48 @@ Push to `main`. That's it.
 
 Roll back by re-running the workflow against an older commit SHA from the Actions tab (workflow_dispatch lets you pick a ref).
 
+## Blog admin (Cloudflare Access)
+
+The blog editor lives at `/admin` and its API at `/api/v1/admin/*`. Two layers
+protect it: **Cloudflare Access** gates both paths at the edge (email one-time
+code), and the **Go API independently verifies the Access JWT** (signature,
+issuer, audience, expiry, and an email allow-list), so a request that reaches the
+origin directly is still rejected. With any of the settings missing the admin
+stays **disabled** (503) — it never falls back to open.
+
+One-time setup:
+
+1. **Create your Zero Trust organization** in the Cloudflare dashboard (Zero
+   Trust → pick a team name). The Free plan covers up to 50 users.
+2. **Extend your Cloudflare API token** (Edit token → add):
+   `Account → Access: Apps and Policies → Edit` and `Zone → Cache Rules → Edit`.
+3. **Add three variables to `terraform.tfvars`** (see `terraform.tfvars.example`):
+   `cloudflare_account_id`, `access_team_name`, `admin_email`.
+4. **Apply**: `tofu plan`, review, then `tofu apply`. This creates the Access
+   application + policy (`access.tf`) and the blog cache rule (`cache.tf`).
+5. **Set three GitHub Actions *variables*** (Settings → Secrets and variables →
+   Actions → Variables; they aren't secrets) from `tofu output`:
+   `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `ADMIN_EMAILS`.
+6. **Update the systemd unit on the *existing* server.** Deploys don't rewrite
+   it (only cloud-init does, on first boot), so SSH in once:
+   ```sh
+   scp deploy/dillonthompson.service dillon@<server>:/tmp/
+   ssh dillon@<server> 'sudo install -m 644 /tmp/dillonthompson.service /etc/systemd/system/dillonthompson.service && sudo systemctl daemon-reload'
+   ```
+   The next deploy (or `systemctl restart dillonthompson`) picks up the new `-e` flags.
+7. **Deploy**, then visit `https://dillonthompson.com/admin` — you should get
+   the Cloudflare login, then the editor.
+
+Notes:
+- Order doesn't matter for safety: until steps 5–6 are done the admin just
+  returns 503; the public blog works regardless.
+- Local dev: set `ADMIN_DEV_BYPASS=true` (see `.env.example`). It is ignored
+  whenever the Access settings are present, so it can't be active in prod.
+- New posts appear publicly within ~5 minutes (edge cache honors the API's
+  `s-maxage=300`). No purge step.
+- Rotating the Access application (destroy/recreate) changes `CF_ACCESS_AUD`;
+  update the GitHub variable and redeploy.
+
 ## File map
 
 | Path | Purpose |
