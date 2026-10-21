@@ -49,73 +49,121 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    /* Sunrise: clear morning sky blue easing into a peach horizon, coral sun. */
+    --background: oklch(0.96 0.035 230);
+    --foreground: oklch(0.25 0.05 255);
+    --card: oklch(0.985 0.015 230);
+    --card-foreground: oklch(0.25 0.05 255);
+    --popover: oklch(0.985 0.015 230);
+    --popover-foreground: oklch(0.25 0.05 255);
+    --primary: oklch(0.52 0.17 40);
+    --primary-foreground: oklch(0.99 0.01 80);
+    --secondary: oklch(0.93 0.04 230);
+    --secondary-foreground: oklch(0.28 0.05 255);
+    --muted: oklch(0.93 0.04 230);
+    --muted-foreground: oklch(0.44 0.05 250);
+    --accent: oklch(0.93 0.07 85);
+    --accent-foreground: oklch(0.28 0.05 255);
+    --destructive: oklch(0.52 0.22 27.3);
+    --border: oklch(0.86 0.04 235);
+    --input: oklch(0.86 0.04 235);
+    --ring: oklch(0.5 0.13 235);
+    --chart-1: oklch(0.85 0.12 85);
+    --chart-2: oklch(0.75 0.14 65);
+    --chart-3: oklch(0.66 0.16 45);
+    --chart-4: oklch(0.58 0.17 30);
+    --chart-5: oklch(0.45 0.13 20);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: oklch(0.95 0.03 230);
+    --sidebar-foreground: oklch(0.25 0.05 255);
+    --sidebar-primary: oklch(0.52 0.17 40);
+    --sidebar-primary-foreground: oklch(0.99 0.01 80);
+    --sidebar-accent: oklch(0.93 0.07 85);
+    --sidebar-accent-foreground: oklch(0.28 0.05 255);
+    --sidebar-border: oklch(0.86 0.04 235);
+    --sidebar-ring: oklch(0.5 0.13 235);
+    --sky-top: oklch(0.84 0.09 235);
+    --sky-bottom: oklch(0.94 0.07 75);
+    --sun: oklch(0.9 0.15 90);
+    --sun-glow: oklch(0.85 0.15 70 / 55%);
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
+    /* Fall sunset: deep navy sky with auburn-orange fire at the horizon. */
+    --background: oklch(0.2 0.05 258);
+    --foreground: oklch(0.95 0.02 80);
+    --card: oklch(0.25 0.055 258);
+    --card-foreground: oklch(0.95 0.02 80);
+    --popover: oklch(0.25 0.055 258);
+    --popover-foreground: oklch(0.95 0.02 80);
+    --primary: oklch(0.72 0.16 50);
+    --primary-foreground: oklch(0.2 0.05 258);
+    --secondary: oklch(0.29 0.055 258);
+    --secondary-foreground: oklch(0.95 0.02 80);
+    --muted: oklch(0.29 0.055 258);
+    --muted-foreground: oklch(0.76 0.04 70);
+    --accent: oklch(0.33 0.07 45);
+    --accent-foreground: oklch(0.95 0.02 80);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --border: oklch(0.85 0.06 60 / 14%);
+    --input: oklch(0.85 0.06 60 / 18%);
+    --ring: oklch(0.65 0.15 48);
+    --chart-1: oklch(0.85 0.13 80);
+    --chart-2: oklch(0.72 0.16 50);
+    --chart-3: oklch(0.58 0.15 35);
+    --chart-4: oklch(0.5 0.1 270);
+    --chart-5: oklch(0.38 0.09 260);
+    --sidebar: oklch(0.25 0.055 258);
+    --sidebar-foreground: oklch(0.95 0.02 80);
+    --sidebar-primary: oklch(0.72 0.16 50);
+    --sidebar-primary-foreground: oklch(0.2 0.05 258);
+    --sidebar-accent: oklch(0.33 0.07 45);
+    --sidebar-accent-foreground: oklch(0.95 0.02 80);
+    --sidebar-border: oklch(0.85 0.06 60 / 14%);
+    --sidebar-ring: oklch(0.65 0.15 48);
+    --sky-top: oklch(0.16 0.06 265);
+    --sky-bottom: oklch(0.34 0.1 38);
+    --sun: oklch(0.75 0.17 50);
+    --sun-glow: oklch(0.62 0.18 38 / 60%);
 }
+
+/* Sky gradient behind the page: a hint of dusk/dawn at the top fading into the
+   flat background. Fixed so it reads as a sky, not part of the scrolling page. */
+.sky {
+    background-image: linear-gradient(to bottom, var(--sky-top), var(--background) 55%, var(--sky-bottom));
+    background-attachment: fixed;
+}
+
+/* --- Sunrise/sunset theme transition (driven by lib/theme-transition.ts) ---
+   The root snapshots are clipped by a JS-driven circle that follows the sun, so turn
+   off the default cross-fade. Everything is scoped to .theme-anim (set only for
+   the duration of the toggle) so it can't affect any other view transition. When heading to sunset the old (sunrise) layer
+   sits on top and shrinks away. */
+.theme-anim::view-transition-old(root),
+.theme-anim::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+.theme-anim.theme-to-sunset::view-transition-old(root) { z-index: 2; }
+/* Start the sunrise layer fully clipped so it can't flash before JS starts the animation. */
+.theme-anim:not(.theme-to-sunset)::view-transition-new(root) { clip-path: circle(0px at 50% 100%); }
+
+#theme-sun {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 14rem;
+    height: 14rem;
+    border-radius: 9999px;
+    pointer-events: none;
+    view-transition-name: theme-sun;
+    background: radial-gradient(circle, var(--sun) 0 30%, var(--sun-glow) 31%, transparent 70%);
+}
+/* The sun's position and opacity are animated in JS; hide it until that starts
+   so it can't flash at the top-left corner. */
+::view-transition-group(theme-sun) { animation: none; }
+::view-transition-image-pair(theme-sun) { opacity: 0; }
+::view-transition-new(theme-sun) { animation: none; mix-blend-mode: normal; }
 
 @keyframes border-glow {
   0%   { border-color: rgba(139, 92, 246, 0.7); box-shadow: 0 0 14px 3px rgba(139, 92, 246, 0.3), 0 0 28px 6px rgba(139, 92, 246, 0.1); }

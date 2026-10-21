@@ -39,6 +39,18 @@ export function TerminalBar() {
   const helpShown = useRef(false)
   const navigate = useNavigate()
 
+  // Opens the terminal and, the first time only, surfaces the help listing so
+  // the available commands are obvious. Later opens keep whatever's there —
+  // including an intentionally empty pane after `clear` — so it doesn't feel
+  // chatty.
+  const openTerminal = useCallback(() => {
+    setExpanded(true)
+    if (!helpShown.current) {
+      helpShown.current = true
+      setHistory((prev) => [...prev, { type: 'output', text: helpText() }])
+    }
+  }, [])
+
   const scrollToBottom = useCallback(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight
@@ -78,7 +90,7 @@ export function TerminalBar() {
         '  Stack:  Go, React, Postgres',
         '  Editor: VS Code + Claude Code',
         '  Shell:  fish',
-        '  Theme:  dark',
+        `  Theme:  ${document.documentElement.classList.contains('dark') ? 'sunset' : 'sunrise'}`,
       ].join('\n')
       setHistory([...newHistory, { type: 'output', text: info }])
       return
@@ -146,31 +158,21 @@ export function TerminalBar() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setExpanded(true)
+        openTerminal()
         setTimeout(() => inputRef.current?.focus(), 50)
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
+  }, [openTerminal])
 
-  // Surface the help listing the first time the user opens the terminal so the
-  // available commands are obvious. Subsequent opens keep whatever's there —
-  // including an intentionally empty pane after `clear` — so it doesn't feel
-  // chatty.
-  useEffect(() => {
-    if (expanded && !helpShown.current) {
-      helpShown.current = true
-      setHistory((prev) => [...prev, { type: 'output', text: helpText() }])
-    }
-  }, [expanded])
 
   return (
     <div className="w-full max-w-2xl mx-auto">
       {/* Input bar */}
       <div
         className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-2 font-mono text-sm cursor-text transition-colors hover:border-foreground/20 focus-within:border-foreground/30"
-        onClick={() => { setExpanded(true); inputRef.current?.focus() }}
+        onClick={() => { openTerminal(); inputRef.current?.focus() }}
       >
         <span className="text-muted-foreground select-none shrink-0">~$</span>
         <input
@@ -178,7 +180,7 @@ export function TerminalBar() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => setExpanded(true)}
+          onFocus={openTerminal}
           placeholder="type a command..."
           className="flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground/50 caret-foreground"
           spellCheck={false}
