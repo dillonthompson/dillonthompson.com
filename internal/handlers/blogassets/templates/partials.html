@@ -20,11 +20,11 @@
 <meta name="twitter:description" content="{{.Description}}">
 <meta name="twitter:image" content="{{.SiteURL}}/og-image.png">
 {{if .PublishedISO}}<meta property="article:published_time" content="{{.PublishedISO}}">{{end}}
-<script src="/blog/assets/theme.js"></script>
-<script src="/blog/assets/terminal.js" defer></script>
+<script src="{{asset "theme.js"}}"></script>
+<script src="{{asset "terminal.js"}}" defer></script>
 <link rel="preload" href="/blog/assets/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/blog/assets/blog.css">
-<link rel="stylesheet" href="/blog/assets/syntax.css">
+<link rel="stylesheet" href="{{asset "blog.css"}}">
+<link rel="stylesheet" href="{{asset "syntax.css"}}">
 </head>
 <body class="blog">
 <header class="blog-header"><div class="blog-header-inner">

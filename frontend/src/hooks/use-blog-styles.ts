@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 
-const STYLESHEETS = ['/blog/assets/blog.css', '/blog/assets/syntax.css']
+// The build id busts Cloudflare/browser caches when blog.css changes.
+const STYLESHEETS = ['/blog/assets/blog.css', '/blog/assets/syntax.css'].map((href) => `${href}?v=${__BUILD_ID__}`)
 
 // Loads the Go-served blog stylesheets so the editor preview renders post
 // bodies exactly as the public site does. The sheets are scoped to
