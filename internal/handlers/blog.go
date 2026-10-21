@@ -71,10 +71,6 @@ func etagFor(body []byte) string {
 }
 
 func NewBlogHandler(queries *repository.Queries, siteURL string) (*BlogHandler, error) {
-	tmpl, err := template.ParseFS(blogTemplateFS, "blogassets/templates/*.html")
-	if err != nil {
-		return nil, fmt.Errorf("parsing blog templates: %w", err)
-	}
 	syntax, err := markdown.SyntaxCSS()
 	if err != nil {
 		return nil, err
@@ -93,6 +89,16 @@ func NewBlogHandler(queries *repository.Queries, siteURL string) (*BlogHandler, 
 			return nil, fmt.Errorf("reading blog asset %s: %w", name, err)
 		}
 		assets[name] = newBlogAsset(contentType, body)
+	}
+	// `asset` appends the file's content hash so a changed asset gets a new URL
+	// and can't be served stale from Cloudflare's or the browser's cache.
+	tmpl, err := template.New("").Funcs(template.FuncMap{
+		"asset": func(name string) string {
+			return "/blog/assets/" + name + "?v=" + strings.Trim(assets[name].etag, `"`)
+		},
+	}).ParseFS(blogTemplateFS, "blogassets/templates/*.html")
+	if err != nil {
+		return nil, fmt.Errorf("parsing blog templates: %w", err)
 	}
 	return &BlogHandler{
 		queries: queries,

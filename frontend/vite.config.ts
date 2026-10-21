@@ -9,6 +9,8 @@ const apiTarget = process.env.API_PROXY_TARGET ?? 'http://api:8080'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Cache-busts the blog stylesheets the admin preview loads from the Go API.
+  define: { __BUILD_ID__: JSON.stringify(Date.now().toString(36)) },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
