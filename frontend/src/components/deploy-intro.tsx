@@ -97,11 +97,11 @@ export function DeployIntro({ onComplete }: DeployIntroProps) {
   useEffect(() => {
     if (currentStep >= steps.length) return
 
-    setStepDone(false)
     const timer = setTimeout(() => {
       setStepDone(true)
       setTimeout(() => {
         if (currentStep < steps.length - 1) {
+          setStepDone(false)
           setCurrentStep((s) => s + 1)
         } else {
           setAllDone(true)

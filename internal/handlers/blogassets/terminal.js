@@ -65,7 +65,7 @@
         '  Stack:  Go, React, Postgres',
         '  Editor: VS Code + Claude Code',
         '  Shell:  fish',
-        '  Theme:  dark'
+        '  Theme:  ' + (document.documentElement.classList.contains('dark') ? 'sunset' : 'sunrise')
       ].join('\n'));
       render(); return;
     }

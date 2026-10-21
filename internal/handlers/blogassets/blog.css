@@ -18,29 +18,39 @@
 }
 
 .blog, .blog-scope {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --border: oklch(0.922 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --link: oklch(0.45 0.15 264);
+  /* Sunrise (light) */
+  --background: oklch(0.96 0.035 230);
+  --foreground: oklch(0.25 0.05 255);
+  --muted: oklch(0.93 0.04 230);
+  --muted-foreground: oklch(0.44 0.05 250);
+  --border: oklch(0.86 0.04 235);
+  --destructive: oklch(0.52 0.22 27.3);
+  --link: oklch(0.46 0.16 40);
+  --sky-top: oklch(0.84 0.09 235);
+  --sky-bottom: oklch(0.94 0.07 75);
+  --sun: oklch(0.9 0.15 90);
+  --sun-glow: oklch(0.85 0.15 70 / 55%);
   --radius: 0.625rem;
 }
 .dark .blog, .dark .blog-scope {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --border: oklch(1 0 0 / 10%);
+  /* Fall sunset (dark, default): navy sky, auburn horizon */
+  --background: oklch(0.2 0.05 258);
+  --foreground: oklch(0.95 0.02 80);
+  --muted: oklch(0.29 0.055 258);
+  --muted-foreground: oklch(0.76 0.04 70);
+  --border: oklch(0.85 0.06 60 / 14%);
   --destructive: oklch(0.704 0.191 22.216);
-  --link: oklch(0.75 0.12 264);
+  --link: oklch(0.78 0.13 55);
+  --sky-top: oklch(0.16 0.06 265);
+  --sky-bottom: oklch(0.34 0.1 38);
+  --sun: oklch(0.75 0.17 50);
+  --sun-glow: oklch(0.62 0.18 38 / 60%);
 }
 
 body.blog {
   margin: 0;
   min-height: 100vh;
-  background: var(--background);
+  background: var(--background) linear-gradient(to bottom, var(--sky-top), var(--background) 55%, var(--sky-bottom)) fixed;
   color: var(--foreground);
   font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
   line-height: 1.5;
@@ -105,11 +115,40 @@ body.blog {
 }
 .icon-btn:hover { background: var(--muted); }
 .icon-btn svg { width: 16px; height: 16px; }
-/* Sun while dark, moon while light — matches theme-toggle.tsx. */
-.blog .icon-moon { display: inline; }
-.blog .icon-sun { display: none; }
-.dark .blog .icon-moon { display: none; }
-.dark .blog .icon-sun { display: inline; }
+/* Icon shows where the toggle goes: sunrise while dark (sunset), sunset while
+   light — matches theme-toggle.tsx. */
+.blog .icon-sunrise { display: none; }
+.blog .icon-sunset { display: inline; }
+.dark .blog .icon-sunrise { display: inline; }
+.dark .blog .icon-sunset { display: none; }
+
+/* --- Sunrise/sunset theme transition (driven by theme.js) ------------------
+   Same as the SPA's index.css; keep in sync. */
+.theme-anim::view-transition-old(root),
+.theme-anim::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+.theme-anim.theme-to-sunset::view-transition-old(root) { z-index: 2; }
+/* Start the sunrise layer fully clipped so it can't flash before JS starts the animation. */
+.theme-anim:not(.theme-to-sunset)::view-transition-new(root) { clip-path: circle(0px at 50% 100%); }
+
+.blog #theme-sun {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  view-transition-name: theme-sun;
+  background: radial-gradient(circle, var(--sun) 0 30%, var(--sun-glow) 31%, transparent 70%);
+}
+/* The sun's position and opacity are animated in JS; hide it until that starts
+   so it can't flash at the top-left corner. */
+::view-transition-group(theme-sun) { animation: none; }
+::view-transition-image-pair(theme-sun) { opacity: 0; }
+::view-transition-new(theme-sun) { animation: none; mix-blend-mode: normal; }
 
 /* --- Page body: same measure as the About page (max-w-3xl px-6 py-16) ------ */
 .blog-main { max-width: 48rem; margin: 0 auto; padding: 4rem 1.5rem; }
